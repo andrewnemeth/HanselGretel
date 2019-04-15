@@ -9,16 +9,16 @@
 var NIGHT_GRID_SIZE = 5;//must be odd
 var GRID_DAY_COLOR = PS.COLOR_WHITE; // background color
 var GRID_NIGHT_COLOR = PS.COLOR_GRAY_DARK; // background color
-var _COLOR_WALL = PS.COLOR_BLACK; // wall color
+var _COLOR_WALL = [55,50,24]; // wall color
 var _COLOR_FLOOR = PS.COLOR_GRAY; // floor color
 var _COLOR_GOLD = PS.COLOR_YELLOW; // gold color
-var _COLOR_ACTOR = PS.COLOR_GREEN; // actor color
-var OOB_COLOR = PS.COLOR_BLACK
+var _COLOR_ACTOR = [91,110,225]; // actor color
+var OOB_COLOR = [55,50,24]
 var TIMER_COLOR = PS.COLOR_RED
-const GUIDE_COLOR = PS.COLOR_RED; // actor color
-var _COLOR_EXIT = PS.COLOR_BLUE; // exit color
-const ROCK_COLOR = PS.COLOR_WHITE
-var MARK_COLOR = PS.COLOR_RED
+const GUIDE_COLOR = [217,87,99]; // actor color
+var _COLOR_EXIT = [172,50,50]; // exit color
+const ROCK_COLOR = [182,224,241]
+var MARK_COLOR = [217,160,102]
 var ENTRANCE_COLOR = PS.COLOR_YELLOW
 
 const maze1 = {
@@ -46,7 +46,6 @@ const maze1 = {
         0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0,
         0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0,
         0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0,
-        //0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 4, 0,
         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ]
 };
@@ -94,6 +93,8 @@ var rockPos = [] //stores rock locations in form {x,y}
 var rockCount = 3;
 
 const TIMER_INTERVAL = 6
+
+var timeSpentOnPlanning = -1;
 
 // This imageMap is used for map drawing and pathfinder logic
 // All properties MUST be present!
@@ -147,6 +148,10 @@ const S_KEY = 115
 const A_KEY = 97
 const W_KEY = 119
 
+PS.shutdown = function ( options ) {
+    PS.dbEvent( "winRecordsV1", "shutdown", true ,"timeSpentPlanning",timeSpentOnPlanning);
+    PS.dbSend( "winRecordsV1", "aenemeth" );
+};
 
 function xyToIndex(x,y,w) {
     return (x+(y*w))
@@ -231,6 +236,7 @@ function movePlayerEvalVictory() {
     if ( _exit_ready && ( _actor_x === _exit_x ) && ( _actor_y === _exit_y ) ) {
         PS.timerStop( _id_timer ); // stop movement timer
         _won = true;
+        timeSpentOnPlanning = PS.elapsed()/1000
         maze1DayWon()
         return;
     }
@@ -428,7 +434,7 @@ var maze1Day = ( function () {
 		// Called once at startup
 
 		init : function () {
-			initMapAndPlayer()
+            initMapAndPlayer()
 			initGuide();
 		},
 		
@@ -594,12 +600,17 @@ var maze1Night =(function (){
             PS.color(x,y,_COLOR_FLOOR)
 
         }
+        PS.dbEvent( "winRecordsV1","didWin",false,"timerPercent",(mazeTimer/MAZE_TIMER_START),"timeSpentPlanning",timeSpentOnPlanning);
+        PS.dbSend( "winRecordsV1","aenemeth",{discard:true});
 
     }
     function onWin() {
         PS.audioPlay(_SOUND_WIN)
         PS.timerStop(timerID)
         PS.statusText("You made it out!")
+        PS.dbEvent( "winRecordsV1","didWin",true,"timerPercent",(mazeTimer/MAZE_TIMER_START),"timeSpentPlanning",timeSpentOnPlanning);
+        PS.dbSend( "winRecordsV1","aenemeth",{discard:true});
+
     }
     function initMapAndPlayer(){
         timerID = PS.timerStart( TIMER_INTERVAL, tick );
@@ -665,6 +676,7 @@ var maze1Night =(function (){
 } () ); // end of IIFE
 
 
+
 function setPSFunctions(level) {
     PS.touch = level.touch;
     PS.keyDown = level.keyDown;
@@ -680,6 +692,10 @@ function maze1DayWon(){
 // so they can be assigned to those handlers directly.
 // Note the LACK of parentheses after G.init and G.move!
 // We want to assign the functions themselves, NOT the values returned by calling them!
-PS.init = maze1Day.init;
+PS.init = function (){
+    PS.dbInit( "winRecordsV1");
+
+    maze1Day.init();
+}
 setPSFunctions(maze1Day)
 
