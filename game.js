@@ -13,13 +13,17 @@ var G = ( function () {
 	// Private constants are all upper-case, with underscore prefix
 
 	var _PLANE_FLOOR = 0; // z-plane of floor
-	var _PLANE_ACTOR = 1; // z-plane of actor
+	var _PLANE_ACTOR = 2; // z-plane of actor
+    const GUIDE_PLANE = 3;
+    var MARK_PLANE = 1;
 
-	var _COLOR_BG = PS.COLOR_GRAY_DARK; // background color
+
+    var _COLOR_BG = PS.COLOR_GRAY_DARK; // background color
 	var _COLOR_WALL = PS.COLOR_BLACK; // wall color
 	var _COLOR_FLOOR = PS.COLOR_GRAY; // floor color
 	var _COLOR_GOLD = PS.COLOR_YELLOW; // gold color
 	var _COLOR_ACTOR = PS.COLOR_GREEN; // actor color
+	const GUIDE_COLOR = PS.COLOR_RED; // actor color
 	var _COLOR_EXIT = PS.COLOR_BLUE; // exit color
 
 	var _SOUND_FLOOR = "fx_click"; // touch floor sound
@@ -37,6 +41,11 @@ var G = ( function () {
 
 	var _GOLD_MAX = 10; // maximum gold
 
+	var guide =  {x: null, y: null, sprite: null, path: null, step: null}
+
+	var MARK_COLOR = PS.COLOR_RED
+    var MARK_ALPHA = 100
+
 	// This imageMap is used for map drawing and pathfinder logic
 	// All properties MUST be present!
 	// The map.data array controls the layout of the maze,
@@ -51,27 +60,27 @@ var G = ( function () {
 		width : 23, height : 23, pixelSize : 1,
 		data : [
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 3, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 2, 0, 1, 1, 1, 1, 1, 1, 1, 0,
+			0, 3, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0,
 			0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0,
 			0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0,
 			0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0,
-			0, 1, 1, 1, 1, 1, 0, 2, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
+			0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0,
 			0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0,
-			0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 2, 0,
+			0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0,
 			0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0,
 			0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0,
 			0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0,
-			0, 1, 1, 1, 0, 1, 1, 1, 1, 2, 1, 1, 0, 1, 1, 2, 1, 1, 0, 1, 1, 1, 0,
+			0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0,
 			0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0,
-			0, 1, 1, 2, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0,
+			0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0,
 			0, 1, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0,
-			0, 1, 0, 1, 0, 1, 1, 2, 0, 1, 1, 1, 1, 2, 0, 1, 1, 1, 0, 1, 1, 1, 0,
+			0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0,
 			0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0,
-			0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 2, 1, 1, 0,
+			0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0,
 			0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0,
 			0, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0,
 			0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0,
-			0, 1, 1, 1, 1, 2, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 4, 0,
+			0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 4, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 		]
 	};
@@ -104,85 +113,278 @@ var G = ( function () {
 	// This moves the actor along paths
 
 	var _path; // path to follow, null if none
+	var guidePath; // path to follow, null if none
 	var _step; // current step on path
+	var guideStep; // current step on path
 
 	// This timer function moves the actor
+	var keyDown = []
+
+	const D_KEY = 100
+	const S_KEY = 115
+	const A_KEY = 97
+	const W_KEY = 119
+
+	
+	function determinePath() {
+        var line;
+
+        // Do nothing if game over
+
+        if ( _won ) {
+            return;
+        }
+
+        // Use pathfinder to calculate a line from current actor position
+        // to touched position
+
+        if(keyDown[D_KEY]){//d
+            line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x+1, _actor_y );
+        }else if(keyDown[S_KEY]){//s
+            line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x, _actor_y+1 );
+        }else if(keyDown[W_KEY]){//s
+            line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x, _actor_y-1 );
+        }else if(keyDown[A_KEY]){//s
+            line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x-1, _actor_y );
+        }else{
+            line = []
+        }
+
+        // If line is not empty, it's valid,
+        // so make it the new path
+        // Otherwise hoot at the player
+
+        if ( line.length > 0 ) {
+            _path = line;
+            _step = 0; // start at beginning
+
+        }
+
+    }
+
+    function movePlayerEvalVictory() {
+        var p, nx, ny, ptr, val;
+
+        if ( !_path ) { // path invalid (null)?
+            return; // just exit
+        }
+
+        // Get next point on path
+
+        p = _path[ _step ];
+        nx = p[ 0 ]; // next x-pos
+        ny = p[ 1 ]; // next y-pos
+
+        // If actor already at next pos,
+        // path is exhausted, so nuke it
+
+        if ( ( _actor_x === nx ) && ( _actor_y === ny ) ) {
+            _path = null;
+            return;
+        }
+
+        // Move sprite to next position
+        PS.audioPlay( _SOUND_FLOOR );
+        PS.spriteMove( _id_sprite, nx, ny );
+        _actor_x = nx; // update actor's xpos
+        _actor_y = ny; // and ypos
+
+        // If actor has reached a gold piece, take it
+
+        ptr = ( _actor_y * _MAP.height ) + _actor_x; // pointer to map data under actor
+        val = _MAP.data[ ptr ]; // get map data
+        if ( val === _MAP_GOLD ) {
+            _MAP.data[ ptr ] = _MAP_FLOOR; // change gold to floor in map.data
+            PS.gridPlane( _PLANE_FLOOR ); // switch to floor plane
+            PS.color( _actor_x, _actor_y, _COLOR_FLOOR ); // change visible floor color
+
+            // If last gold has been collected, activate the exit
+
+            _gold_found += 1; // update gold count
+            if ( _gold_found >= _gold_count ) {
+                _exit_ready = true;
+                PS.color( _exit_x, _exit_y, _COLOR_EXIT ); // show the exit
+                PS.glyphColor( _exit_x, _exit_y, PS.COLOR_WHITE ); // mark with white X
+                PS.glyph( _exit_x, _exit_y, "X" );
+                PS.statusText( "Found " + _gold_found + " gold! Exit open!" );
+                PS.audioPlay( _SOUND_OPEN );
+            }
+
+            // Otherwise just update score
+
+            else {
+                PS.statusText( "Found " + _gold_found + " gold!" );
+                PS.audioPlay( _SOUND_GOLD );
+            }
+        }
+
+        // If exit is ready and actor has reached it, end game
+
+        else if ( _exit_ready && ( _actor_x === _exit_x ) && ( _actor_y === _exit_y ) ) {
+            PS.timerStop( _id_timer ); // stop movement timer
+            PS.statusText( "You escaped with " + _gold_found + " gold!" );
+            PS.audioPlay( _SOUND_WIN );
+            _won = true;
+            return;
+        }
+
+        _step += 1; // point to next step
+
+        // If no more steps, nuke path
+
+        if ( _step >= _path.length ) {
+            _path = null;
+        }
+    }
+
+    function markPath(x,y) {
+        let newMark = PS.spriteSolid(1,1)
+        PS.spriteSolidColor(newMark,MARK_COLOR)
+        PS.spritePlane(newMark, MARK_PLANE)
+        PS.spriteSolidAlpha(newMark,MARK_ALPHA)
+        PS.spriteMove(newMark,x,y)
+    }
+
+    function moveGuide(){
+        var p, nx, ny, ptr, val;
+
+
+        if ( !guide.path ) { // path invalid (null)?
+            return; // just exit
+        }
+
+        // Get next point on path
+
+        p = guide.path[ guide.step ];
+        nx = p[ 0 ]; // next x-pos
+        ny = p[ 1 ]; // next y-pos
+
+        // If actor already at next pos,
+        // path is exhausted, so nuke it
+
+        if ( ( guide.x === nx ) && ( guide.y === ny ) ) {
+            _path = null;
+            return;
+        }
+        //mark old location
+        markPath(guide.x,guide.y)
+
+        // Move sprite to next position
+        PS.spriteMove( guide.sprite, nx, ny );
+        guide.x = nx; // update actor's xpos
+        guide.y = ny; // and ypos
+
+        guide.step += 1; // point to next step
+
+        // If no more steps, nuke path
+
+        if ( guide.step >= guide.path.length ) {
+            guide.path = null;
+        }
+	}
 
 	var _tick = function () {
-		var p, nx, ny, ptr, val;
+		determinePath()
+		moveGuide();
+		movePlayerEvalVictory()
 
-		if ( !_path ) { // path invalid (null)?
-			return; // just exit
-		}
-
-		// Get next point on path
-
-		p = _path[ _step ];
-		nx = p[ 0 ]; // next x-pos
-		ny = p[ 1 ]; // next y-pos
-
-		// If actor already at next pos,
-		// path is exhausted, so nuke it
-
-		if ( ( _actor_x === nx ) && ( _actor_y === ny ) ) {
-			_path = null;
-			return;
-		}
-
-		// Move sprite to next position
-
-		PS.spriteMove( _id_sprite, nx, ny );
-		_actor_x = nx; // update actor's xpos
-		_actor_y = ny; // and ypos
-
-		// If actor has reached a gold piece, take it
-
-		ptr = ( _actor_y * _MAP.height ) + _actor_x; // pointer to map data under actor
-		val = _MAP.data[ ptr ]; // get map data
-		if ( val === _MAP_GOLD ) {
-			_MAP.data[ ptr ] = _MAP_FLOOR; // change gold to floor in map.data
-			PS.gridPlane( _PLANE_FLOOR ); // switch to floor plane
-			PS.color( _actor_x, _actor_y, _COLOR_FLOOR ); // change visible floor color
-
-			// If last gold has been collected, activate the exit
-
-			_gold_found += 1; // update gold count
-			if ( _gold_found >= _gold_count ) {
-				_exit_ready = true;
-				PS.color( _exit_x, _exit_y, _COLOR_EXIT ); // show the exit
-				PS.glyphColor( _exit_x, _exit_y, PS.COLOR_WHITE ); // mark with white X
-				PS.glyph( _exit_x, _exit_y, "X" );
-				PS.statusText( "Found " + _gold_found + " gold! Exit open!" );
-				PS.audioPlay( _SOUND_OPEN );
-			}
-
-			// Otherwise just update score
-
-			else {
-				PS.statusText( "Found " + _gold_found + " gold!" );
-				PS.audioPlay( _SOUND_GOLD );
-			}
-		}
-
-		// If exit is ready and actor has reached it, end game
-
-		else if ( _exit_ready && ( _actor_x === _exit_x ) && ( _actor_y === _exit_y ) ) {
-			PS.timerStop( _id_timer ); // stop movement timer
-			PS.statusText( "You escaped with " + _gold_found + " gold!" );
-			PS.audioPlay( _SOUND_WIN );
-			_won = true;
-			return;
-		}
-
-		_step += 1; // point to next step
-
-		// If no more steps, nuke path
-
-		if ( _step >= _path.length ) {
-			_path = null;
-		}
 	};
 
+	function initMapAndPlayer() {
+        var x, y, val;
+
+        // Establish grid size
+        // This should always be done FIRST, before any other initialization!
+
+        PS.gridSize( _MAP.width, _MAP.height );
+        PS.gridColor( _COLOR_BG ); // grid background color
+        PS.border( PS.ALL, PS.ALL, 0 ); // no bead borders
+
+        // Locate positions of actor and exit, count gold pieces, draw map
+
+        _gold_count = 0;
+        _actor_x = _exit_x = -1; // mark as not found
+        for ( y = 0; y < _MAP.height; y += 1 ) {
+            for ( x = 0; x < _MAP.width; x += 1 ) {
+                val = _MAP.data[ ( y * _MAP.height ) + x ]; // get map data
+                if ( val === _MAP_WALL ) {
+                    PS.color( x, y, _COLOR_WALL );
+                }
+                else if ( val === _MAP_FLOOR ) {
+                    PS.color( x, y, _COLOR_FLOOR );
+                }
+                else if ( val === _MAP_GOLD ) {
+                    _gold_count += 1;
+                    if ( _gold_count > _GOLD_MAX ) {
+                        PS.debug( "WARNING: More than " + _GOLD_MAX + " gold!\n" );
+                        PS.audioPlay( _SOUND_ERROR );
+                        return;
+                    }
+                    PS.color( x, y, _COLOR_GOLD );
+                }
+                else if ( val === _MAP_ACTOR ) {
+                    if ( _actor_x >= 0 ) {
+                        PS.debug( "WARNING: More than one actor!\n" );
+                        PS.audioPlay( _SOUND_ERROR );
+                        return;
+                    }
+                    _actor_x = x;
+                    _actor_y = y;
+                    _MAP.data[ ( y * _MAP.height ) + x ] = _MAP_FLOOR; // change actor to floor
+                    PS.color( x, y, _COLOR_FLOOR );
+                }
+                else if ( val === _MAP_EXIT ) {
+                    if ( _exit_x >= 0 ) {
+                        PS.debug( "WARNING: More than one exit!\n" );
+                        PS.audioPlay( _SOUND_ERROR );
+                        return;
+                    }
+                    _exit_x = x;
+                    _exit_y = y;
+                    _MAP.data[ ( y * _MAP.height ) + x ] = _MAP_FLOOR; // change exit to floor
+                    PS.color( x, y, _COLOR_FLOOR );
+                }
+            }
+        }
+
+        PS.statusColor( PS.COLOR_WHITE );
+        PS.statusText( "Click/touch to move" );
+
+        // Create 1x1 solid sprite for actor
+        // Place on actor plane in initial actor position
+
+        _id_sprite = PS.spriteSolid( 1, 1 );
+        PS.spriteSolidColor( _id_sprite, _COLOR_ACTOR );
+        PS.spritePlane( _id_sprite, _PLANE_ACTOR );
+        PS.spriteMove( _id_sprite, _actor_x, _actor_y );
+
+        // Create pathmap from our imageMap
+        // for use by pathfinder
+
+        _id_path = PS.pathMap( _MAP );
+
+        // Start the timer function that moves the actor
+        // Run at 10 frames/sec (every 6 ticks)
+
+        _path = null; // start with no path
+        _step = 0;
+        _id_timer = PS.timerStart( 6, _tick );
+    }
+    
+    function initGuide() {
+        guide.sprite = PS.spriteSolid( 1, 1 );
+
+        PS.spriteSolidColor( guide.sprite, GUIDE_COLOR );
+        PS.spritePlane( guide.sprite, GUIDE_PLANE );
+        PS.spriteMove( guide.sprite, _actor_x, _actor_y );
+
+        guide.x = _actor_x
+		guide.y = _actor_y
+
+        guide.path = PS.pathFind( _id_path, _actor_x, _actor_y, _exit_x,_exit_y );
+		guide.step = 0;
+    }
+	
 	// Public functions are exposed in the global G object, which is returned here.
 	// Only two functions need to be exposed; everything else is encapsulated!
 	// So safe. So elegant.
@@ -192,120 +394,17 @@ var G = ( function () {
 		// Called once at startup
 
 		init : function () {
-			var x, y, val;
-
-			// Establish grid size
-			// This should always be done FIRST, before any other initialization!
-
-			PS.gridSize( _MAP.width, _MAP.height );
-			PS.gridColor( _COLOR_BG ); // grid background color
-			PS.border( PS.ALL, PS.ALL, 0 ); // no bead borders
-
-			// Locate positions of actor and exit, count gold pieces, draw map
-
-			_gold_count = 0;
-			_actor_x = _exit_x = -1; // mark as not found
-			for ( y = 0; y < _MAP.height; y += 1 ) {
-				for ( x = 0; x < _MAP.width; x += 1 ) {
-					val = _MAP.data[ ( y * _MAP.height ) + x ]; // get map data
-					if ( val === _MAP_WALL ) {
-						PS.color( x, y, _COLOR_WALL );
-					}
-					else if ( val === _MAP_FLOOR ) {
-						PS.color( x, y, _COLOR_FLOOR );
-					}
-					else if ( val === _MAP_GOLD ) {
-						_gold_count += 1;
-						if ( _gold_count > _GOLD_MAX ) {
-							PS.debug( "WARNING: More than " + _GOLD_MAX + " gold!\n" );
-							PS.audioPlay( _SOUND_ERROR );
-							return;
-						}
-						PS.color( x, y, _COLOR_GOLD );
-					}
-					else if ( val === _MAP_ACTOR ) {
-						if ( _actor_x >= 0 ) {
-							PS.debug( "WARNING: More than one actor!\n" );
-							PS.audioPlay( _SOUND_ERROR );
-							return;
-						}
-						_actor_x = x;
-						_actor_y = y;
-						_MAP.data[ ( y * _MAP.height ) + x ] = _MAP_FLOOR; // change actor to floor
-						PS.color( x, y, _COLOR_FLOOR );
-					}
-					else if ( val === _MAP_EXIT ) {
-						if ( _exit_x >= 0 ) {
-							PS.debug( "WARNING: More than one exit!\n" );
-							PS.audioPlay( _SOUND_ERROR );
-							return;
-						}
-						_exit_x = x;
-						_exit_y = y;
-						_MAP.data[ ( y * _MAP.height ) + x ] = _MAP_FLOOR; // change exit to floor
-						PS.color( x, y, _COLOR_FLOOR );
-					}
-				}
-			}
-
-			PS.statusColor( PS.COLOR_WHITE );
-			PS.statusText( "Click/touch to move" );
-
-			// Create 1x1 solid sprite for actor
-			// Place on actor plane in initial actor position
-
-			_id_sprite = PS.spriteSolid( 1, 1 );
-			PS.spriteSolidColor( _id_sprite, _COLOR_ACTOR );
-			PS.spritePlane( _id_sprite, _PLANE_ACTOR );
-			PS.spriteMove( _id_sprite, _actor_x, _actor_y );
-
-			// Create pathmap from our imageMap
-			// for use by pathfinder
-
-			_id_path = PS.pathMap( _MAP );
-
-			// Start the timer function that moves the actor
-			// Run at 10 frames/sec (every 6 ticks)
-
-			_path = null; // start with no path
-			_step = 0;
-			_id_timer = PS.timerStart( 6, _tick );
+			initMapAndPlayer()
+			initGuide();
 		},
 		
 		keyDown : function (key, shift, ctrl, options ) {
-            var line;
+			keyDown[key] = true
+            determinePath()
+        },
 
-            // Do nothing if game over
-
-            if ( _won ) {
-                return;
-            }
-            console.log(key)
-
-            // Use pathfinder to calculate a line from current actor position
-            // to touched position
-
-            if(key == 100){//d
-                line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x+1, _actor_y );
-            }else if(key == 115){//s
-                line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x, _actor_y+1 );
-            }else{
-            	line = []
-			}
-
-            // If line is not empty, it's valid,
-            // so make it the new path
-            // Otherwise hoot at the player
-
-            if ( line.length > 0 ) {
-                _path = line;
-                _step = 0; // start at beginning
-                PS.audioPlay( _SOUND_FLOOR );
-            }
-            else {
-                PS.audioPlay( _SOUND_WALL );
-            }
-
+        keyUp : function (key, shift, ctrl, options ){
+            keyDown[key] = false
         }
 
 		// move( x, y )
@@ -351,4 +450,5 @@ var G = ( function () {
 PS.init = G.init;
 PS.touch = G.touch;
 PS.keyDown = G.keyDown;
+PS.keyUp = G.keyUp;
 
