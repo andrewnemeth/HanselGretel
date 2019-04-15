@@ -73,6 +73,7 @@ var _SOUND_GOLD = "fx_coin1"; // take coin sound
 var _SOUND_OPEN = "fx_powerup8"; // open exit sound
 var _SOUND_WIN = "fx_tada"; // win sound
 var _SOUND_ERROR = "fx_uhoh"; // error sound
+var LOSE_SOUND = "fx_wilhelm"
 
 var WALL_ID = 0; // wall
 var FLOOR_ID = 1; // floor
@@ -349,8 +350,7 @@ var maze1Day = ( function () {
             }
         }
 
-        PS.statusColor( PS.COLOR_WHITE );
-        PS.statusText( "Click/touch to move" );
+        PS.statusText( "Press space to drop stones" );
 
         // Create 1x1 solid sprite for actor
         // Place on actor plane in initial actor position
@@ -377,7 +377,6 @@ var maze1Day = ( function () {
         PS.color( _exit_x, _exit_y, _COLOR_EXIT ); // show the exit
         PS.glyphColor( _exit_x, _exit_y, PS.COLOR_WHITE ); // mark with white X
         PS.glyph( _exit_x, _exit_y, "X" );
-        PS.statusText( "Found " + _gold_found + " gold! Exit open!" );
         //PS.audioPlay( _SOUND_OPEN );
     }
     
@@ -400,12 +399,21 @@ var maze1Day = ( function () {
         PS.spriteSolidColor(rockSprite,ROCK_COLOR)
         PS.spritePlane(rockSprite, ROCK_PLANE)
         PS.spriteMove(rockSprite,x,y)
-        rockPos[x+(y*maze1DayData.width)] = true
+        rockPos[x+(y*maze1DayData.width)] = rockSprite
+    }
+    function pickUpRock(x,y) {
+	    PS.spriteDelete(rockPos[xyToIndex(x,y,maze1DayData.width)])
+        rockPos[xyToIndex(x,y,maze1DayData.width)] = null
+        rockCount+=1
+
     }
 
-    function dropRockCommand() {
-        if(rockCount>0){
-            dropRock(_actor_x,_actor_y)
+    function dropRockCommand(x,y) {
+	    if(rockPos[xyToIndex(x,y,maze1DayData.width)]){
+            pickUpRock(x,y)
+
+        }else if(rockCount>0){
+            dropRock(x,y)
             rockCount-=1
         }
     }
@@ -428,7 +436,7 @@ var maze1Day = ( function () {
 			keyDown[key] = true
             determinePath()
             if(key == SPACE_KEY){
-                dropRockCommand()
+                dropRockCommand(_actor_x,_actor_y)
             }
         },
 
@@ -569,7 +577,24 @@ var maze1Night =(function (){
         //if on exit, end game
         if(nightMap.data[xyToIndex(_actor_x,_actor_y,nightMap.width)]== _MAP_EXIT){
             onWin()
+        }else if(mazeTimer<0){
+            onLose()
         }
+    }
+
+    function onLose() {
+        PS.audioPlay(LOSE_SOUND)
+        PS.timerStop(timerID)
+        PS.statusText("You starved in the woods...")
+        let x = Math.floor(NIGHT_GRID_SIZE/2)
+        let y = Math.floor(NIGHT_GRID_SIZE/2)
+        if(rockPos[x+(y*nightMap.width)]){
+            PS.color(x,y,ROCK_COLOR)
+        }else{
+            PS.color(x,y,_COLOR_FLOOR)
+
+        }
+
     }
     function onWin() {
         PS.audioPlay(_SOUND_WIN)
