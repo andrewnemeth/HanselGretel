@@ -6,8 +6,10 @@ var hutLevel = ( function () {
     function onWin(){
         PS.timerStop( _id_timer ); // stop movement timer
         _won = true;
-        timeSpentOnPlanning = PS.elapsed()/1000
-
+        calcTimeToWin(onLevel)
+        PS.audioPlay("fx_tada")
+        PS.statusText("You saved Hansel!")
+        sendDB()
         loadLevel(levelNum+1)
     }
 
@@ -336,16 +338,28 @@ var hutLevel = ( function () {
             putInOven()
         }
         if(witch.x == _actor_x && witch.y == _actor_y && witchStage == 2){
-            loseGame();
+            if(!_won){
+                loseGame();
+            }else{
+                burnWitch()
+            }
         }
 
+    }
+
+    function burnWitch() {
+        PS.audioPlay("fx_swoosh")
+        PS.spriteDelete(witch.sprite)
+        PS.statusText("And the witch burned!")
     }
     var lost
     var loseTextTimer
     function loseGame() {
         lost = true
         PS.statusText("\"Neheheheh, I feast tonight!\"")
+        PS.audioPlay("fx_wilhelm")
         loseTextTimer = PS.timerStart(160,loseGameTextChange)
+        reportLoss(onLevel)
 
     }
 

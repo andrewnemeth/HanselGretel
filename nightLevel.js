@@ -3,7 +3,7 @@ var nightLevel =(function (){
     var eatenCandy = []
     var onLevel
     var lost = false
-    var MAZE_TIMER_START = 300
+    var MAZE_TIMER_START = 3000
     // var MAZE_TIMER_START = 2000
     var mazeTimer = MAZE_TIMER_START
     var maze
@@ -17,7 +17,7 @@ var nightLevel =(function (){
     var actorSprite
     var followerSprite
     var hasSeenBread = false
-
+    var firstCandy
     function renderMap() {
         PS.spriteShow(actorSprite,true)
         PS.spriteShow(followerSprite,true)
@@ -168,6 +168,10 @@ var nightLevel =(function (){
     }
 
     function eatCandy(x,y) {
+        if(firstCandy){
+            PS.dbEvent( "hungerOnCandyV2","hunger%",mazeTimer/MAZE_TIMER_START);
+            firstCandy = false
+        }
         PS.statusText("mmmmmm, candy!")
         eatenCandy[xyToIndex(_actor_x,_actor_y,maze.width)] = true
         mazeTimer += CANDY_REFILL
@@ -208,18 +212,16 @@ var nightLevel =(function (){
 
         PS.spriteShow(followerSprite,false)
         PS.spriteShow(actorSprite,false)
-
-        PS.dbEvent( "winRecordsV1","didWin",false,"timerPercent",(mazeTimer/MAZE_TIMER_START),"timeSpentPlanning",timeSpentOnPlanning);
+        reportLoss(onLevel)
         //PS.dbSend( "winRecordsV1","aenemeth",{discard:true});
         lost = true
     }
     function onWin() {
-        PS.audioPlay(_SOUND_WIN)
+        //PS.audioPlay(_SOUND_WIN)
         PS.timerStop(timerID)
         PS.statusText("You made it out!")
-        PS.dbEvent( "winRecordsV1","didWin",true,"timerPercent",(mazeTimer/MAZE_TIMER_START),"timeSpentPlanning",timeSpentOnPlanning);
-        loadLevel(onLevel+1)
-        //PS.dbSend( "winRecordsV1","aenemeth",{discard:true});
+        calcTimeToWin(onLevel)
+       loadLevel(onLevel+1)
 
     }
 
@@ -301,7 +303,7 @@ var nightLevel =(function (){
         init : function (withmaze, doesHaveCrows, thisLevelNum) {
             hasSeenBread = false
             eatenCandy = []
-
+            firstCandy = true
             //if(!actorSprite){
             actorSprite =  PS.spriteSolid( 1, 1 );
             PS.spriteSolidColor( actorSprite, _COLOR_ACTOR );

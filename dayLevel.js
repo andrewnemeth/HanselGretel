@@ -12,7 +12,7 @@ var dayLevel = ( function () {
 
     var followerID ;
 
-    var STARTING_ROCKS = 3
+    var STARTING_ROCKS = 15
     var rockCount = STARTING_ROCKS;
 
     var _id_sprite; // actor sprite id
@@ -58,15 +58,29 @@ var dayLevel = ( function () {
             return;
         }
 
+
         // Use pathfinder to calculate a line from current actor position
         // to touched position
+        //TODO: handle OOB
         if(keyDown[D_KEY]){//d
+            if( isOOB(_actor_x+1,_actor_y)){
+                return
+            }
             line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x+1, _actor_y );
         }else if(keyDown[S_KEY]){//s
+            if( isOOB(_actor_x,_actor_y+1)){
+                return
+            }
             line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x, _actor_y+1 );
         }else if(keyDown[W_KEY]){//s
+            if( isOOB(_actor_x,_actor_y-1)){
+                return
+            }
             line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x, _actor_y-1 );
         }else if(keyDown[A_KEY]){//s
+            if( isOOB(_actor_x-1,_actor_y)){
+                return
+            }
             line = PS.pathFind( _id_path, _actor_x, _actor_y, _actor_x-1, _actor_y );
         }else{
             line = []
@@ -82,6 +96,9 @@ var dayLevel = ( function () {
 
         }
 
+    }
+    function isOOB(x,y) {
+        return (x<0 || x>=maze.width || y<0 || y>=maze.height)
     }
     var playerHasMoved = false;
     function movePlayerEvalVictory() {
@@ -321,7 +338,18 @@ var dayLevel = ( function () {
         rockPos[xyToIndex(x,y,maze.width)] = null
         rockCount+=1
 
+        if(lowOnRocks){
+            if(!hasCrows){
+                PS.statusText("\"We have "+rockCount+" pebbles left...\"")
+            }else{
+                PS.statusText("\"We have "+rockCount+" breadcrumbs left...\"")
+            }
+        }else{
+            setText("Mark a path home")
+        }
     }
+
+    var lowOnRocks
 
     function dropRockCommand(x,y) {
         if(rockPos[xyToIndex(x,y,maze.width)]){
@@ -329,8 +357,21 @@ var dayLevel = ( function () {
 
         }else if(rockCount>0){
             dropRock(x,y)
-            setText("Mark a path home")
             rockCount-=1
+            if(rockCount<5){
+                if(!lowOnRocks) lowOnRocks = true;
+            }
+
+            if(lowOnRocks){
+                if(!hasCrows){
+                    PS.statusText("\"We have "+rockCount+" rocks left...\"")
+                }else{
+                    PS.statusText("\"We have "+rockCount+" breadcrumbs left...\"")
+                }
+            }else{
+                setText("Mark a path home")
+            }
+
         }
     }
 
@@ -348,7 +389,7 @@ var dayLevel = ( function () {
 
         init : function (withmaze, doesHaveCrows, onlevel) {
             hasCrows = doesHaveCrows
-
+            lowOnRocks = false
             playerHasMoved = false
             setText("Follow father with WASD")
 
