@@ -12,7 +12,8 @@ var hutLevel = ( function () {
     }
 
     var followerID ;
-
+    var follower = {x: 0, y: 0}
+    var witchStage
     var STARTING_ROCKS = 3
     var rockCount = STARTING_ROCKS;
 
@@ -78,7 +79,7 @@ var hutLevel = ( function () {
     function movePlayerEvalVictory() {
         var p, nx, ny, ptr, val;
 
-        if ( !_path ) { // path invalid (null)?
+        if ( !_path || lost) { // path invalid (null)?
             return; // just exit
         }
 
@@ -97,16 +98,14 @@ var hutLevel = ( function () {
         }
 
         if(!playerHasMoved){
-            setText("Place/Pickup stones with space")
             playerHasMoved = true
 
         }
 
 
-        //MOVE FOLLOWER
-        PS.spriteMove( followerID,_actor_x, _actor_y);
-
-
+        if(witchStage == 0){//MOVE FOLLOWER
+            PS.spriteMove( followerID,_actor_x, _actor_y);
+        }
 
         // Move sprite to next position
         PS.audioPlay( _SOUND_FLOOR );
@@ -152,9 +151,14 @@ var hutLevel = ( function () {
 
     function eatCandy(x,y) {
         PS.color(x,y,FLOOR_COLOR)
-        speed+=CANDY_SLOW
-        PS.audioPlay(EAT_CANDY_SOUND)
         candyEaten[xyToIndex(x,y,maze.width)] = true
+        PS.audioPlay(EAT_CANDY_SOUND)
+
+
+        if(witchStage == 0){
+            speed+=CANDY_SLOW
+        }
+
     }
 
     var _tick = function () {
@@ -163,13 +167,6 @@ var hutLevel = ( function () {
 
     }
 
-    function setText(text) {
-        if(!hasCrows){
-            PS.statusText(text)
-        }else{
-            PS.statusText("You only have breadcrumbs now...")
-        }
-    }
 
     function initMapAndPlayer() {
 
@@ -216,8 +213,9 @@ var hutLevel = ( function () {
                     }
                     _exit_x = x;
                     _exit_y = y;
+                    PS.color(x,y,FLOOR_COLOR)
                     //maze.data[ ( y * maze.height ) + x ] = FLOOR_ID; // change exit to floor
-                    PS.color( x, y, _COLOR_EXIT );
+
                 }else if (val == WITCH_ID){
                     witch.x = x
                     witch.y = y
@@ -256,11 +254,7 @@ var hutLevel = ( function () {
         _id_timer = PS.timerStart( TIMER_INTERVAL, _tick );
 
 
-        _exit_ready = true;
-        PS.color( _exit_x, _exit_y, _COLOR_EXIT ); // show the exit
-        PS.glyphColor( _exit_x, _exit_y, PS.COLOR_WHITE ); // mark with white X
-        PS.glyph( _exit_x, _exit_y, "X" );
-        //PS.audioPlay( _SOUND_OPEN );
+
     }
 
 
@@ -275,50 +269,15 @@ var hutLevel = ( function () {
     var hasCrows
     var DROP_COLOR
     var moveTimer
-    return {
-        // Initialize the game
-        // Called once at startup
 
-        init : function (withmaze, doesHaveCrows, onlevel) {
-            speed = HUT_START_SPEED
-            hasCrows = doesHaveCrows
-            candyEaten = []
-            playerHasMoved = false
-            setText("Follow father with WASD")
 
-            if(hasCrows){
-                DROP_COLOR = BREAD_COLOR
-            }else{
-                DROP_COLOR = ROCK_COLOR
-            }
-            levelNum = onlevel
-            maze = withmaze
-            _won = false
-            rockPos = []
-            rockCount = STARTING_ROCKS
-            moveTimer = PS.timerStart(speed,movePlayerEvalVictory)
-            initMapAndPlayer()
-            initWitch()
-        },
-
-        keyDown : function (key, shift, ctrl, options ) {
-            keyDown[key] = true
-            determinePath()
-            if(key == SPACE_KEY){
-                dropRockCommand(_actor_x,_actor_y)
-            }
-        },
-
-        keyUp : function (key, shift, ctrl, options ){
-            keyDown[key] = false
-        }
-
-    };
 
     //==================== WITCH FUNCTIONS
     var witch =  {x: null, y: null, sprite: null, path: null, step: null}
     var witchTimer
-    var witchTickSpeed = 12
+    var witchTickSpeed
+    var WITCH_FAST_SPEED = 11
+    const WITCH_SLOW_SPEED = 20
 
     function witchTick() {
         moveWitch()
@@ -346,6 +305,9 @@ var hutLevel = ( function () {
             return;
         }
 
+        if(witchStage == 1){//MOVE FOLLOWER
+            PS.spriteMove( followerID,witch.x, witch.y);
+        }
 
         // Move sprite to next position
         PS.spriteMove( witch.sprite, nx, ny );
@@ -360,11 +322,62 @@ var hutLevel = ( function () {
             witch.path = null;
         }
 
+        evalWitchLocation()
+
+
         updateWitchPath()
+    }
+    function evalWitchLocation() {
+        //if the witch is on the player, steal follower
+        if(witch.x == _actor_x && witch.y == _actor_y && witchStage == 0){
+            stealFollower();
+        }
+        if(witch.x == _exit_x && witch.y == _exit_y && witchStage == 1){
+            putInOven()
+        }
+        if(witch.x == _actor_x && witch.y == _actor_y && witchStage == 2){
+            loseGame();
+        }
+
+    }
+    var lost
+    var loseTextTimer
+    function loseGame() {
+        lost = true
+        PS.statusText("\"Neheheheh, I feast tonight!\"")
+        loseTextTimer = PS.timerStart(160,loseGameTextChange)
+
+    }
+
+    function loseGameTextChange() {
+        PS.statusText("Tap to retry")
+    }
+
+    function putInOven() {
+        PS.statusText("Save Hansel without getting caught!")
+        PS.spriteShow(followerID,false)
+        witchStage = 2
+    }
+
+    function stealFollower() {
+
+        witchStage = 1;
+        speed = HUT_START_SPEED
+        showOven()
+        PS.timerStop(witchTimer)
+        witchTimer = PS.timerStart(WITCH_FAST_SPEED,witchTick)
+        PS.statusText("\"Come Hansel, to the oven!\"")
+
+    }
+
+    function showOven() {
+        _exit_ready = true;
+        PS.color( _exit_x, _exit_y, _COLOR_EXIT );
     }
 
     function initWitch() {
-        witchTickSpeed = 12
+        PS.statusText("\"Welcome children, eat some candy!\"")
+        witchTickSpeed = WITCH_SLOW_SPEED
         witch.sprite = PS.spriteSolid( 1, 1 );
 
         PS.spriteSolidColor( witch.sprite, WITCH_COLOR );
@@ -377,10 +390,88 @@ var hutLevel = ( function () {
 
     }
     function updateWitchPath() {
-        witch.path = PS.pathFind( _id_path, witch.x, witch.y, _actor_x,_actor_y);
-        witch.step = 0;
-        if ( witch.step >= witch.path.length ) {
-            witch.path = null;
+        if(witchStage == 0){
+            witch.path = PS.pathFind( _id_path, witch.x, witch.y, _actor_x,_actor_y);
+            witch.step = 0;
+            if ( witch.step >= witch.path.length ) {
+                witch.path = null;
+            }
+        }else if(witchStage == 1){
+            witch.path = PS.pathFind( _id_path, witch.x, witch.y, _exit_x,_exit_y);
+            witch.step = 0;
+            if ( witch.step >= witch.path.length ) {
+                witch.path = null;
+            }
         }
+        else if(witchStage == 2){
+            witch.path = PS.pathFind( _id_path, witch.x, witch.y, _actor_x,_actor_y);
+            witch.step = 0;
+            if ( witch.step >= witch.path.length ) {
+                witch.path = null;
+            }
+        }
+
     }
+
+    function restartLevel() {
+
+        PS.timerStop(witchTimer)
+        PS.timerStop(moveTimer)
+        PS.timerStop(loseTextTimer)
+        loadLevel(onLevel)
+
+
+    }
+
+    var onLevel
+
+    return {
+        // Initialize the game
+        // Called once at startup
+
+        init : function (withmaze, doesHaveCrows, onlevel) {
+            witchStage = 0;
+            onLevel = onlevel
+            lost = false
+            _exit_ready = false;
+
+            speed = HUT_START_SPEED
+            hasCrows = doesHaveCrows
+            candyEaten = []
+            playerHasMoved = false
+
+            if(hasCrows){
+                DROP_COLOR = BREAD_COLOR
+            }else{
+                DROP_COLOR = ROCK_COLOR
+            }
+            levelNum = onlevel
+            maze = withmaze
+            _won = false
+            rockPos = []
+            rockCount = STARTING_ROCKS
+            moveTimer = PS.timerStart(speed,movePlayerEvalVictory)
+            witchStage = false
+            initMapAndPlayer()
+            initWitch()
+        },
+
+        keyDown : function (key, shift, ctrl, options ) {
+            keyDown[key] = true
+            determinePath()
+
+        },
+
+        keyUp : function (key, shift, ctrl, options ){
+            keyDown[key] = false
+        },
+
+
+        touch : function (x,y ){
+            if(lost){
+                restartLevel()
+            }
+        }
+
+    };
 } () ); // end of IIFE
