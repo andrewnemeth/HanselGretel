@@ -29,10 +29,10 @@ var _COLOR_EXIT = [172,50,50]; // exit color
 const ROCK_COLOR = [182,224,241]
 var MARK_COLOR = [217,160,102]
 var ENTRANCE_COLOR = PS.COLOR_YELLOW
-const FOLLOWER_COLOR = PS.COLOR_GREEN
-const CANDY_COLOR = [255,105,180]
+const FOLLOWER_COLOR = [223,113,38]
+const CANDY_COLOR = [215,123,186]
 const HUT_COLOR = PS.COLOR_WHITE
-const BREAD_COLOR = [160,82,45]
+const BREAD_COLOR = [238,195,154]
 
 
 var WALL_ID = 0; // wall
@@ -538,6 +538,7 @@ function setPSFunctions(level) {
 // Note the LACK of parentheses after G.init and G.move!
 // We want to assign the functions themselves, NOT the values returned by calling them!
 PS.init = function (){
+    PS.border(PS.ALL,PS.ALL,0)
     var gotname = function ( id, name ) {
 
         // Game startup code goes here
